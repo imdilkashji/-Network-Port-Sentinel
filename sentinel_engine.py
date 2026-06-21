@@ -10,7 +10,7 @@ PORT_END = 1024
 MAX_WORKERS = 100
 
 # 🚨 PASTE YOUR COPIED DISCORD WEBHOOK URL INSIDE THE QUOTES BELOW
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1518182565746442422/4K7E3_Au_OgyoodhVUJ73Q9DDDq7i-nr_bWnzRioFSLh7zQAHUtN_55R-A5p6KZKK3yu"
+DISCORD_WEBHOOK_URL = "PASTE_YOUR_WEBHOOK_URL_HERE"
 
 def send_discord_alert(summary_data, open_ports):
     """Transmits a structured JSON payload to the configured Discord Webhook channel."""

@@ -1,9 +1,12 @@
-=== MULTI-THREADED NETWORK SENTINEL AUDIT REPORT ===
+=== ADVANCED NETWORK SENTINEL SYSTEM AUDIT REPORT ===
 Target Infrastructure Host : 127.0.0.1
-Total Port Vectors Scanned  : 1024
-Total Execution Duration   : 5.66 seconds
-Active Workers Allocated   : 100
+Total Port Vectors Audited  : 1024
+Total Execution Duration   : 6.70 seconds
 
---- DISCOVERED ACTIVE SOCKETS ---
-Port 135 | Status: OPEN | Latency: 1.68ms
-Port 445 | Status: OPEN | Latency: 0.49ms
+--- DISCOVERED ACTIVE SOCKETS & FINGERPRINTS ---
+Port 135 | Latency: 4.32ms
+  └─ Service Signature: UNKNOWN SERVICE (No Banner Returned)
+
+Port 445 | Latency: 2.42ms
+  └─ Service Signature: UNKNOWN SERVICE (No Banner Returned)
+

@@ -1,5 +1,7 @@
 import socket
 import time
+import json
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 TARGET_HOST = "127.0.0.1"
@@ -7,15 +9,66 @@ PORT_START = 1
 PORT_END = 1024
 MAX_WORKERS = 100
 
+# 🚨 PASTE YOUR COPIED DISCORD WEBHOOK URL INSIDE THE QUOTES BELOW
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1518182565746442422/4K7E3_Au_OgyoodhVUJ73Q9DDDq7i-nr_bWnzRioFSLh7zQAHUtN_55R-A5p6KZKK3yu"
+
+def send_discord_alert(summary_data, open_ports):
+    """Transmits a structured JSON payload to the configured Discord Webhook channel."""
+    if DISCORD_WEBHOOK_URL == "PASTE_YOUR_WEBHOOK_URL_HERE":
+        print("[-] Skip Discord Notification: Webhook URL not configured.")
+        return
+
+    print("[*] Compiling telemetry metrics for Discord transmission...")
+    
+    # Format a clean, human-readable markdown list of the open sockets discovered
+    port_list_str = ""
+    for p in open_ports:
+        port_list_str += f"• **Port {p['port']}** | Latency: {p['latency_ms']}ms\n  └ *Identity:* `{p['service']}`\n"
+    if not port_list_str:
+        port_list_str = "No active open ports discovered in this vector range."
+
+    # Construct the Discord Rich Embed payload structure
+    payload = {
+        "username": "Network Sentinel Bot",
+        "avatar_url": "https://i.imgur.com/w8R6K6E.png",
+        "embeds": [{
+            "title": "🛡️ Network Audit Security Report",
+            "color": 3447003,  # Blue color hex code in decimal
+            "fields": [
+                {"name": "Target Host", "value": f"`{summary_data['host']}`", "inline": True},
+                {"name": "Scan Duration", "value": f"`{summary_data['duration']:.2f}s`", "inline": True},
+                {"name": "Total Ports Audited", "value": f"`{summary_data['total_scanned']}`", "inline": False},
+                {"name": "Isolated Active Sockets", "value": port_list_str, "inline": False}
+            ],
+            "footer": {"text": "Automated Telemetry Pipeline | Stage 3 Active"},
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }]
+    }
+
+    try:
+        # Convert the Python dictionary into a JSON string and encode to raw bytes
+        data_bytes = json.dumps(payload).encode('utf-8')
+        
+        # Build the HTTP Request with a proper Content-Type header
+        req = urllib.request.Request(
+            DISCORD_WEBHOOK_URL, 
+            data=data_bytes, 
+            headers={'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0'}
+        )
+        
+        # Fire the HTTPS POST request to Discord's API
+        with urllib.request.urlopen(req) as response:
+            if response.status == 204 or response.status == 200:
+                print("[+] Security metrics transmitted successfully to Discord channel.")
+    except Exception as e:
+        print(f"[-] API Transmission Failure: {e}")
+
 def grab_service_banner(sock):
     """Attempts to read the initial service identification banner from an open socket."""
     try:
-        # Send a basic application-layer probe in case the service waits for user input
         sock.sendall(b"HEAD / HTTP/1.1\r\n\r\n")
-        # Read the first 1024 bytes of the response stream
         banner = sock.recv(1024)
         if banner:
-            # Clean up the output string by removing formatting artifacts
             return banner.decode('utf-8', errors='ignore').replace('\r', '').replace('\n', ' ').strip()
     except Exception:
         pass
@@ -25,13 +78,12 @@ def audit_single_port(host, port):
     """Performs a TCP connect handshake and fingerprints the underlying service."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.6) # Slightly higher timeout to give slow banners time to reply
+            sock.settimeout(0.6)
             start_time = time.time()
             result = sock.connect_ex((host, port))
             latency = (time.time() - start_time) * 1000
             
             if result == 0:
-                # Port is open, immediately trigger our service identification sub-routine
                 service_fingerprint = grab_service_banner(sock)
                 return {
                     "port": port, 
@@ -44,38 +96,30 @@ def audit_single_port(host, port):
     return {"port": port, "status": "CLOSED", "latency_ms": 0, "service": "NONE"}
 
 def run_network_audit():
-    print(f"[*] Initializing Day 2 Concurrency Sentinel against: {TARGET_HOST}")
-    print(f"[*] Fingerprinting services across ports {PORT_START}-{PORT_END} using {MAX_WORKERS} workers...")
+    print(f"[*] Initializing Day 3 Connected Sentinel against: {TARGET_HOST}")
     
     open_ports = []
     start_audit_time = time.time()
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [executor.submit(audit_single_port, TARGET_HOST, port) for port in range(PORT_START, PORT_END + 1)]
-        
         for future in futures:
             metrics = future.result()
             if metrics["status"] == "OPEN":
                 open_ports.append(metrics)
                 print(f"    [!] DISCOVERY: Port {metrics['port']} is {metrics['status']} | Latency: {metrics['latency_ms']}ms")
-                print(f"        └─ Service Identity: {metrics['service']}")
 
     total_duration = time.time() - start_audit_time
     
-    # Update the production audit report on disk
-    with open("network_audit_report.txt", "w" , encoding="utf-8") as report:
-        report.write("=== ADVANCED NETWORK SENTINEL SYSTEM AUDIT REPORT ===\n")
-        report.write(f"Target Infrastructure Host : {TARGET_HOST}\n")
-        report.write(f"Total Port Vectors Audited  : {PORT_END - PORT_START + 1}\n")
-        report.write(f"Total Execution Duration   : {total_duration:.2f} seconds\n\n")
-        report.write("--- DISCOVERED ACTIVE SOCKETS & FINGERPRINTS ---\n")
-        if not open_ports:
-            report.write("No open ports found within this range.\n")
-        for p in open_ports:
-            report.write(f"Port {p['port']} | Latency: {p['latency_ms']}ms\n")
-            report.write(f"  └─ Service Signature: {p['service']}\n\n")
-            
-    print(f"[+] Audit complete. Advanced system mapping written to 'network_audit_report.txt'.")
+    summary_data = {
+        "host": TARGET_HOST,
+        "duration": total_duration,
+        "total_scanned": PORT_END - PORT_START + 1
+    }
+    
+    # Trigger the automated webhook pipeline
+    send_discord_alert(summary_data, open_ports)
+    print(f"[+] Processing loop finalized.")
 
 if __name__ == "__main__":
     run_network_audit()
